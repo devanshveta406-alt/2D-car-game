@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+<title>Speed Rush – Arcade</title>
+<style>
+body{margin:0;background:#111;color:#fff;font-family:Arial;display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;overflow:hidden}
+h1{margin:6px}
+#hud{margin-bottom:6px}
+canvas{background:#333;border:4px solid #fff;border-radius:12px;touch-action:none}
+.controls{display:flex;gap:15px;margin-top:10px}
+button{padding:12px 18px;font-size:18px;border:none;border-radius:10px;cursor:pointer}
+.overlay{position:absolute;top:0;left:0;width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.75)}
+.menu{background:#222;padding:30px;border-radius:16px;text-align:center}
+.menu button{width:200px;margin:8px 0}
+#nitro{background:#ff5252;color:#fff}
+</style>
+</head>
+<body>
+<h1>🚗 Speed Rush</h1>
+<div id="hud" style="display:none">
+Score: <span id="score">0</span> |
+Best: <span id="best">0</span> |
+Level: <span id="level">1</span>
+</div>
+<canvas id="game" width="360" height="600"></canvas>
+
+<div id="startScreen" class="overlay">
+  <div class="menu">
+    <h2>Speed Rush</h2>
+    <button id="startBtn">▶ Start Game</button>
+  </div>
+</div>
+
+<div id="gameOverScreen" class="overlay" style="display:none">
+  <div class="menu">
+    <h2>Game Over</h2>
+    <p>Score: <span id="finalScore">0</span></p>
+    <p>Best: <span id="finalBest">0</span></p>
+    <button id="restartBtn">🔄 Restart</button>
+  </div>
+</div>
+
+<div class="controls" id="controls" style="display:none">
+  <button id="left">⬅️</button>
+  <button id="nitro">💨 Nitro</button>
+  <button id="right">➡️</button>
+</div>
+
+<script>
+const canvas=document.getElementById('game');
+const ctx=canvas.getContext('2d');
+const scoreEl=document.getElementById('score');
+const bestEl=document.getElementById('best');
+const levelEl=document.getElementById('level');
+const startScreen=document.getElementById('startScreen');
+const startBtn=document.getElementById('startBtn');
+const gameOverScreen=document.getElementById('gameOverScreen');
+const finalScore=document.getElementById('finalScore');
+const finalBest=document.getElementById('finalBest');
+const restartBtn=document.getElementById('restartBtn');
+const controls=document.getElementById('controls');
+const left=document.getElementById('left');
+const right=document.getElementById('right');
+const nitro=document.getElementById('nitro');
+
+let score=0;
+let bestScore=Number(localStorage.getItem('bestScore')||0);
+let level=1;
+let speed=4;
+let gameStarted=false;
+let nitroActive=false;
+
+bestEl.textContent=bestScore;
+
+const lanes=[60,155,250];
+let currentLane=1;
+const car={x:lanes[1],y:470,w:50,h:90};
+const obstacles=[];
+
+const bgMusic=new Audio('https://cdn.pixabay.com/download/audio/2022/03/15/audio_7c3d07c5b2.mp3');
+bgMusic.loop=true;bgMusic.volume=0.35;
+const crashSound=new Audio('https://cdn.pixabay.com/download/audio/2022/03/10/audio_6c1c6a9c0a.mp3');
+
+function drawRoad(){
+  ctx.fillStyle='#444';ctx.fillRect(0,0,360,600);
+  ctx.strokeStyle='#fff';ctx.setLineDash([20,20]);ctx.lineWidth=4;
+  lanes.forEach(l=>{ctx.beginPath();ctx.moveTo(l+25,0);ctx.lineTo(l+25,600);ctx.stroke();});
+  ctx.setLineDash([]);
+}
+
+const playerCarImg=new Image();playerCarImg.src='https://i.imgur.com/6QxQZQy.png';
+const enemyCarImg=new Image();enemyCarImg.src='https://i.imgur.com/zYxDCQT.png';
+
+function drawCar(x,y,w,h,type='player',tilt=0,nitroFx=false){
+  ctx.save();
+  ctx.translate(x+w/2,y+h/2);ctx.rotate(tilt);ctx.translate(-w/2,-h/2);
+  ctx.fillStyle='rgba(0,0,0,0.35)';ctx.fillRect(4,10,w,h);
+  const img=type==='player'?playerCarImg:enemyCarImg;
+  if(img.complete) ctx.drawImage(img,0,0,w,h);
+  else{ctx.fillStyle='#ff5252';ctx.fillRect(0,0,w,h);}  
+  if(nitroFx){ctx.fillStyle='orange';ctx.beginPath();ctx.moveTo(w/2-6,h);ctx.lineTo(w/2+6,h);ctx.lineTo(w/2,h+20);ctx.fill();}
+  ctx.restore();
+}
+
+function spawnObstacle(){obstacles.push({lane:Math.floor(Math.random()*3),y:-120,w:50,h:90});}
+
+function endGame(){gameStarted=false;bgMusic.pause();finalScore.textContent=score;finalBest.textContent=bestScore;gameOverScreen.style.display='flex';}
+
+function update(){
+  if(!gameStarted){requestAnimationFrame(update);return;}
+  drawRoad();
+  drawCar(car.x,car.y,car.w,car.h,'player',(currentLane-1)*0.1,nitroActive);
+  for(let i=obstacles.length-1;i>=0;i--){
+    const o=obstacles[i];o.y+=speed;
+    drawCar(lanes[o.lane],o.y,o.w,o.h,'enemy');
+    if(o.y>600){obstacles.splice(i,1);score++;scoreEl.textContent=score;
+      if(score>bestScore){bestScore=score;localStorage.setItem('bestScore',bestScore);bestEl.textContent=bestScore;}
+      if(score%5===0){level++;speed++;levelEl.textContent=level;}}
+    if(Math.abs(lanes[o.lane]-car.x)<40 && Math.abs(o.y-car.y)<70){crashSound.play();endGame();}
+  }
+  requestAnimationFrame(update);
+}
+
+startBtn.onclick=()=>{startScreen.style.display='none';controls.style.display='flex';document.getElementById('hud').style.display='block';gameStarted=true;bgMusic.play();};
+restartBtn.onclick=()=>location.reload();
+
+document.addEventListener('keydown',e=>{if(!gameStarted)return;if(e.key==='ArrowLeft'&&currentLane>0){currentLane--;car.x=lanes[currentLane];}
+if(e.key==='ArrowRight'&&currentLane<2){currentLane++;car.x=lanes[currentLane];}});
+left.onclick=()=>{if(currentLane>0){currentLane--;car.x=lanes[currentLane];}};
+right.onclick=()=>{if(currentLane<2){currentLane++;car.x=lanes[currentLane];}};
+
+nitro.onclick=()=>{if(nitroActive)return;nitroActive=true;speed+=3;nitro.disabled=true;setTimeout(()=>{speed-=3;nitroActive=false;nitro.disabled=false;},1500);};
+
+setInterval(()=>{if(gameStarted)spawnObstacle();},1200);
+update();
+</script>
+</body>
+</html>
