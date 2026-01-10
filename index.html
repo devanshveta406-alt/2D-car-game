@@ -3,33 +3,66 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Speed Rush – Arcade</title>
+<title>Speed Rush – Ultra Realistic</title>
 <style>
-body{margin:0;background:#111;color:#fff;font-family:Arial;display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh}
-h1{margin:6px}
+body{
+  margin:0;background:radial-gradient(#000,#020202);
+  color:#fff;font-family:Arial;
+  display:flex;flex-direction:column;
+  align-items:center;justify-content:center;
+  height:100vh;overflow:hidden
+}
+h1{margin:6px;text-shadow:0 0 15px red}
 #hud{margin-bottom:6px}
-canvas{background:#333;border:4px solid #fff;border-radius:12px}
+canvas{background:#101010;border:4px solid #fff;border-radius:18px}
 .controls{display:flex;gap:15px;margin-top:10px}
-button{padding:12px 18px;font-size:18px;border:none;border-radius:10px;cursor:pointer}
-.overlay{position:absolute;top:0;left:0;width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.7)}
-.menu{background:#222;padding:30px;border-radius:16px;text-align:center}
+button{
+  padding:12px 18px;font-size:18px;
+  border:none;border-radius:10px;
+  cursor:pointer;background:#ff1744;color:#fff
+}
+.overlay{
+  position:absolute;top:0;left:0;width:100%;height:100%;
+  display:flex;align-items:center;justify-content:center;
+  background:rgba(0,0,0,.7)
+}
+.menu{
+  background:#111;padding:30px;border-radius:16px;
+  box-shadow:0 0 30px red;text-align:center
+}
 .menu button{width:200px;margin:8px 0}
 #countdown{font-size:72px;font-weight:bold}
+#nitroBarContainer{
+  width:250px;height:12px;border:2px solid #fff;
+  border-radius:10px;margin-top:8px;display:none
+}
+#nitroBar{
+  height:100%;width:100%;background:linear-gradient(90deg,cyan,blue);
+  border-radius:10px
+}
 </style>
 </head>
+
 <body>
-<h1>🚗 Speed Rush</h1>
+
+<h1>🚗 SPEED RUSH </h1>
+
 <div id="hud" style="display:none">
 Score: <span id="score">0</span> |
 Best: <span id="best">0</span> |
 Level: <span id="level">1</span>
 </div>
+
+<div id="nitroBarContainer">
+  <div id="nitroBar"></div>
+</div>
+
 <canvas id="game" width="360" height="600"></canvas>
 
 <div id="startScreen" class="overlay">
   <div class="menu">
     <h2>Speed Rush</h2>
-    <button id="startBtn">▶ Start Game</button>
+    <button id="startBtn">▶ START</button>
   </div>
 </div>
 
@@ -39,222 +72,271 @@ Level: <span id="level">1</span>
 
 <div id="gameOverScreen" class="overlay" style="display:none">
   <div class="menu">
-    <h2>Game Over</h2>
+    <h2>GAME OVER</h2>
     <p>Score: <span id="finalScore">0</span></p>
-    <button id="restartBtn">🔄 Restart</button>
+    <button id="restartBtn">🔄 RESTART</button>
   </div>
 </div>
 
 <div class="controls" id="controls" style="display:none">
-<button id="left">⬅️</button>
-<button id="nitro">🔥 Nitro</button>
-<button id="right">➡️</button>
+  <button id="left">⬅️</button>
+  <button id="nitro">🔥</button>
+  <button id="right">➡️</button>
 </div>
 
+<audio id="engine" loop src="https://cdn.pixabay.com/download/audio/2022/03/15/audio_27d426f9c0.mp3?filename=engine-loop-11035.mp3"></audio>
+<audio id="crash" src="https://cdn.pixabay.com/download/audio/2022/03/15/audio_019f541d9d.mp3?filename=crash-11033.mp3"></audio>
+
 <script>
-const canvas=document.getElementById('game');
-const ctx=canvas.getContext('2d');
+const canvas=document.getElementById("game");
+const ctx=canvas.getContext("2d");
 
-const scoreEl=document.getElementById('score');
-const bestEl=document.getElementById('best');
-const levelEl=document.getElementById('level');
-const finalScoreEl=document.getElementById('finalScore');
-const startScreen=document.getElementById('startScreen');
-const countdownScreen=document.getElementById('countdownScreen');
-const gameOverScreen=document.getElementById('gameOverScreen');
-const controls=document.getElementById('controls');
-const hud=document.getElementById('hud');
-const countdownEl=document.getElementById('countdown');
+const scoreEl=document.getElementById("score");
+const bestEl=document.getElementById("best");
+const levelEl=document.getElementById("level");
+const finalScoreEl=document.getElementById("finalScore");
 
-const left=document.getElementById('left');
-const right=document.getElementById('right');
-const nitro=document.getElementById('nitro');
-const startBtn=document.getElementById('startBtn');
-const restartBtn=document.getElementById('restartBtn');
+const startScreen=document.getElementById("startScreen");
+const countdownScreen=document.getElementById("countdownScreen");
+const gameOverScreen=document.getElementById("gameOverScreen");
+const controls=document.getElementById("controls");
+const hud=document.getElementById("hud");
 
-let running=false;
-let score=0,level=1;
-let baseSpeed=4;
-let nitroActive=false;
-let bestScore=Number(localStorage.getItem('bestScore')||0);
+const nitroBar=document.getElementById("nitroBar");
+const nitroBarContainer=document.getElementById("nitroBarContainer");
 
-// 🔊 SOUND EFFECTS
-const engineSound=new Audio('https://cdn.pixabay.com/download/audio/2021/08/04/audio_8b1f4ef0a1.mp3');
-engineSound.loop=true;engineSound.volume=0.3;
-const crashSound=new Audio('https://cdn.pixabay.com/download/audio/2022/03/10/audio_6c1c6a9c0a.mp3');
-const nitroSound=new Audio('https://cdn.pixabay.com/download/audio/2022/02/23/audio_3c2c3db5d5.mp3');
+const engineSound=document.getElementById("engine");
+const crashSound=document.getElementById("crash");
+
+let running=false,score=0,level=1;
+let baseSpeed=4,currentLane=1;
+let nitro=false,nitroEnergy=100;
+let roadOffset=0;
 
 const lanes=[60,155,250];
-let currentLane=1;
-const car={x:lanes[1],y:460,w:52,h:100};
+const car={x:lanes[1],y:450,w:60,h:120};
 const obstacles=[];
+let bestScore=Number(localStorage.getItem("bestScore")||0);
 
+/* ------- PLAYER CAR -------- */
+function drawPlayerCar(){
+  ctx.save();
+  ctx.translate(car.x,car.y);
+
+  const g=ctx.createLinearGradient(0,0,0,car.h);
+  g.addColorStop(0,"#ff5555"); g.addColorStop(.5,"#b00000"); g.addColorStop(1,"#400000");
+  ctx.fillStyle=g;
+
+  ctx.beginPath();
+  ctx.moveTo(10,0); ctx.lineTo(car.w-10,0);
+  ctx.quadraticCurveTo(car.w,car.h*.4,car.w,car.h);
+  ctx.lineTo(0,car.h); ctx.quadraticCurveTo(0,car.h*.4,10,0);
+  ctx.fill();
+
+  // windows
+  ctx.fillStyle="rgba(160,200,255,.85)";
+  ctx.fillRect(car.w*.18,car.h*.12,car.w*.64,car.h*.28);
+
+  // wheels
+  ctx.fillStyle="#111";
+  [car.h*.3,car.h*.75].forEach(p=>{
+    ctx.beginPath();
+    ctx.arc(-6,p,12,0,Math.PI*2);
+    ctx.arc(car.w+6,p,12,0,Math.PI*2);
+    ctx.fill();
+    ctx.fillStyle="#555";
+    ctx.beginPath();
+    ctx.arc(-6,p,4,0,Math.PI*2);
+    ctx.arc(car.w+6,p,4,0,Math.PI*2);
+    ctx.fill();
+    ctx.fillStyle="#111";
+  });
+
+  // headlights
+  ctx.fillStyle="rgba(255,255,200,.9)";
+  ctx.fillRect(8,-2,12,8);
+  ctx.fillRect(car.w-20,-2,12,8);
+
+  // nitro effect
+  if(nitro){
+    ctx.fillStyle="rgba(255,120,0,.9)";
+    ctx.beginPath();
+    ctx.moveTo(car.w/2-10,car.h);
+    ctx.lineTo(car.w/2+10,car.h);
+    ctx.lineTo(car.w/2,car.h+50);
+    ctx.fill();
+    ctx.fillStyle="rgba(0,200,255,.9)";
+    ctx.beginPath();
+    ctx.moveTo(car.w/2-5,car.h);
+    ctx.lineTo(car.w/2+5,car.h);
+    ctx.lineTo(car.w/2,car.h+35);
+    ctx.fill();
+  }
+
+  ctx.restore();
+}
+
+/* ------- ENEMY CAR -------- */
+function drawEnemyCar(o){
+  ctx.save();
+  ctx.translate(lanes[o.lane]+5,o.y);
+
+  let grd = ctx.createLinearGradient(0,0,0,100);
+  grd.addColorStop(0,"#ff9999"); grd.addColorStop(.5,"#cc3333"); grd.addColorStop(1,"#660000");
+  ctx.fillStyle = grd;
+
+  ctx.beginPath();
+  ctx.moveTo(5,0); ctx.lineTo(45,0);
+  ctx.quadraticCurveTo(50,25,50,100);
+  ctx.lineTo(0,100); ctx.quadraticCurveTo(0,25,5,0);
+  ctx.fill();
+
+  // highlight
+  ctx.fillStyle = "rgba(255,255,255,0.15)";
+  ctx.beginPath();
+  ctx.ellipse(25, 20, 20, 6, 0, 0, Math.PI*2);
+  ctx.fill();
+
+  // wheels (outside the body for realism)
+  ctx.fillStyle="#111";
+  [25,75].forEach(p=>{
+      ctx.beginPath();
+      ctx.arc(-6,p,8,0,Math.PI*2);
+      ctx.arc(56,p,8,0,Math.PI*2);
+      ctx.fill();
+      ctx.fillStyle="#555";
+      ctx.beginPath();
+      ctx.arc(-6,p,3,0,Math.PI*2);
+      ctx.arc(56,p,3,0,Math.PI*2);
+      ctx.fill();
+      ctx.fillStyle="#111";
+  });
+
+  ctx.restore();
+}
+
+/* -------- ROAD -------- */
 function drawRoad(){
-  ctx.fillStyle='#444';
-  ctx.fillRect(0,0,canvas.width,canvas.height);
-  ctx.strokeStyle='#fff';
-  ctx.setLineDash([18,18]);
+  ctx.fillStyle="#151515";
+  ctx.fillRect(0,0,360,600);
+
+  roadOffset+=baseSpeed;
+  ctx.setLineDash([20,20]);
+  ctx.lineDashOffset=-roadOffset;
+  ctx.strokeStyle="#fff";
+
   lanes.forEach(l=>{
     ctx.beginPath();
     ctx.moveTo(l+25,0);
     ctx.lineTo(l+40,600);
     ctx.stroke();
   });
+
   ctx.setLineDash([]);
 }
 
-// 🚗 REALISTIC CAR DRAWING
-function drawCar(x,y,w,h,color,nitroFx=false){
-  ctx.fillStyle='rgba(0,0,0,.4)';
-  ctx.beginPath();
-  ctx.ellipse(x+w/2,y+h+8,w/2,10,0,0,Math.PI*2);
-  ctx.fill();
+/* -------- GAME LOOP -------- */
+function update(){
+  if(!running) return;
 
-  const g=ctx.createLinearGradient(x,y,x,y+h);
-  g.addColorStop(0,'#fff');
-  g.addColorStop(0.3,color);
-  g.addColorStop(1,'#000');
-  ctx.fillStyle=g;
-  ctx.beginPath();
-  ctx.moveTo(x+6,y);
-  ctx.lineTo(x+w-6,y);
-  ctx.lineTo(x+w,y+h);
-  ctx.lineTo(x,y+h);
-  ctx.closePath();
-  ctx.fill();
+  drawRoad();
+  drawPlayerCar();
+  nitroBar.style.width=nitroEnergy+"%";
 
-  ctx.fillStyle='rgba(180,220,255,.85)';
-  ctx.fillRect(x+w*0.2,y+h*0.1,w*0.6,h*0.25);
-
-  ctx.fillStyle='#111';
-  [0.25,0.65].forEach(p=>{
-    ctx.beginPath();
-    ctx.arc(x-3,y+h*p,9,0,Math.PI*2);
-    ctx.fill();
-    ctx.beginPath();
-    ctx.arc(x+w+3,y+h*p,9,0,Math.PI*2);
-    ctx.fill();
-  });
-
-  if(nitroFx){
-    ctx.fillStyle='orange';
-    ctx.beginPath();
-    ctx.moveTo(x+w/2-6,y+h);
-    ctx.lineTo(x+w/2+6,y+h);
-    ctx.lineTo(x+w/2,y+h+22);
-    ctx.fill();
+  if(nitro && nitroEnergy>0){
+    baseSpeed=8;
+    nitroEnergy-=1.5;
+  } else{
+    nitro=false;
+    baseSpeed=4+level*0.2;
+    if(nitroEnergy<100) nitroEnergy+=0.3;
   }
+
+  // engine sound
+  engineSound.volume=0.3 + baseSpeed/20;
+  if(engineSound.paused) engineSound.play();
+
+  for(let i=obstacles.length-1;i>=0;i--){
+    const o=obstacles[i];
+    o.y+=baseSpeed;
+
+    drawEnemyCar(o);
+
+    if(o.y>600){obstacles.splice(i,1);score++;}
+
+    if(
+      lanes[o.lane] < car.x+car.w-10 &&
+      lanes[o.lane]+50 > car.x+10 &&
+      o.y < car.y+car.h-10 &&
+      o.y+100 > car.y+10
+    ){
+      crashSound.volume=0.3;
+      crashSound.play();
+      gameOver();
+      return;
+    }
+  }
+
+  scoreEl.textContent=score;
+  bestEl.textContent=bestScore;
+  levelEl.textContent=1+Math.floor(score/25);
+
+  requestAnimationFrame(update);
 }
 
-function spawnObstacle(){
-  obstacles.push({lane:Math.floor(Math.random()*3),y:-140,w:52,h:100,color:'#1976d2'});
+/* -------- CONTROL -------- */
+document.getElementById("left").onclick=()=>{
+  if(currentLane>0){currentLane--;car.x=lanes[currentLane];}
+};
+document.getElementById("right").onclick=()=>{
+  if(currentLane<2){currentLane++;car.x=lanes[currentLane];}
+};
+document.getElementById("nitro").onclick=()=>{
+  if(nitroEnergy>10) nitro=true;
+};
+
+document.addEventListener("keydown",e=>{
+  if(e.key==="ArrowLeft"||e.key==="a")document.getElementById("left").onclick();
+  if(e.key==="ArrowRight"||e.key==="d")document.getElementById("right").onclick();
+  if(e.key===" "||e.key==="Shift")document.getElementById("nitro").onclick();
+});
+
+function startGame(){
+  score=0;
+  nitroEnergy=100;
+  level=1;
+  car.x=lanes[1];
+  currentLane=1;
+  obstacles.length=0;
+
+  hud.style.display="block";
+  nitroBarContainer.style.display="block";
+  startScreen.style.display="none";
+  gameOverScreen.style.display="none";
+  controls.style.display="flex";
+
+  running=true;
+  update();
 }
 
 function gameOver(){
   running=false;
   engineSound.pause();
-  crashSound.play();
   if(score>bestScore){
     bestScore=score;
-    localStorage.setItem('bestScore',bestScore);
+    localStorage.setItem("bestScore",bestScore);
   }
   finalScoreEl.textContent=score;
-  gameOverScreen.style.display='flex';
+  gameOverScreen.style.display="flex";
 }
 
-function update(){
-  if(!running) return;
-  drawRoad();
-  drawCar(car.x,car.y,car.w,car.h,'#d32f2f',nitroActive);
+document.getElementById("startBtn").onclick=startGame;
+document.getElementById("restartBtn").onclick=startGame;
 
-  engineSound.playbackRate=1+(baseSpeed-4)*0.08;
-
-  for(let i=obstacles.length-1;i>=0;i--){
-    const o=obstacles[i];
-    o.y+=baseSpeed;
-    drawCar(lanes[o.lane],o.y,o.w,o.h,o.color);
-
-    if(o.y>600){
-      obstacles.splice(i,1);
-      score++;
-      if(score>bestScore){
-        bestScore=score;
-        localStorage.setItem('bestScore',bestScore);
-      }
-      if(score%5===0) level++;
-      scoreEl.textContent=score;
-      bestEl.textContent=bestScore;
-      levelEl.textContent=level;
-    }
-
-    if(Math.abs(lanes[o.lane]-car.x)<40 && Math.abs(o.y-car.y)<70){
-      gameOver();
-      return;
-    }
-  }
-  requestAnimationFrame(update);
-}
-
-function startCountdown(){
-  let c=3;
-  countdownEl.textContent=c;
-  countdownScreen.style.display='flex';
-  const t=setInterval(()=>{
-    c--;
-    if(c>0){
-      countdownEl.textContent=c;
-    } else {
-      clearInterval(t);
-      countdownScreen.style.display='none';
-      running=true;
-      engineSound.play();
-      update();
-    }
-  },1000);
-}
-
-function startGame(){
-  score=0;
-  level=1;
-  currentLane=1;
-  baseSpeed=4;
-  nitroActive=false;
-  obstacles.length=0;
-  car.x=lanes[1];
-  scoreEl.textContent=0;
-  bestEl.textContent=bestScore;
-  levelEl.textContent=1;
-  startScreen.style.display='none';
-  gameOverScreen.style.display='none';
-  controls.style.display='flex';
-  hud.style.display='block';
-  startCountdown();
-}
-
-left.onclick=()=>{
-  if(currentLane>0){currentLane--;car.x=lanes[currentLane];}
-};
-right.onclick=()=>{
-  if(currentLane<2){currentLane++;car.x=lanes[currentLane];}
-};
-nitro.onclick=()=>{
-  if(nitroActive) return;
-  nitroActive=true;
-  nitroSound.play();
-  baseSpeed+=3;
-  setTimeout(()=>{baseSpeed-=3;nitroActive=false;},1500);
-};
-
-document.addEventListener('keydown',e=>{
-  if(!running) return;
-  if(e.key==='ArrowLeft'&&currentLane>0){currentLane--;car.x=lanes[currentLane];}
-  if(e.key==='ArrowRight'&&currentLane<2){currentLane++;car.x=lanes[currentLane];}
-});
-
-startBtn.onclick=startGame;
-restartBtn.onclick=startGame;
-
-setInterval(()=>running&&spawnObstacle(),1200);
+setInterval(()=>running&&obstacles.push({
+  lane:Math.floor(Math.random()*3),
+  y:-140
+}),1000);
 </script>
 </body>
 </html>
